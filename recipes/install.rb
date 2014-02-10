@@ -4,6 +4,7 @@ bash "install-golang" do
   code <<-EOH
     rm -rf go
     rm -rf #{node['go']['install_dir']}/go
+    mkdir -p /code/go
     tar -C #{node['go']['install_dir']} -xzf #{node["go"]["filename"]}
   EOH
   action :nothing
@@ -22,4 +23,27 @@ cookbook_file "/etc/profile.d/golang.sh" do
   owner "root"
   group "root"
   mode 0755
+end
+
+ruby_block "gopath" do
+    block do
+        # Add to environment variables
+                file = Chef::Util::FileEdit.new("/etc/environment") 
+        file.search_file_replace_line("PATH", "export PATH=\"#{ENV['PATH']}:" + node['go']['install_dir'] + "/go/bin\"")
+        file.write_file
+        
+        file = Chef::Util::FileEdit.new("/etc/environment")        
+        file.search_file_replace_line("GOROOT", "export GOROOT=\"" + node['go']['install_dir'] + "/go\"")
+        file.insert_line_if_no_match("GOROOT", "export GOROOT=\"" + node['go']['install_dir'] + "/go\"")
+        file.write_file
+        
+        file = Chef::Util::FileEdit.new("/etc/environment")        
+        file.search_file_replace_line("GOPATH", "export GOPATH=\"/code/go\"")
+        file.insert_line_if_no_match("GOPATH", "export GOPATH=\"/code/go\"")
+        file.write_file
+        
+        file = Chef::Util::FileEdit.new("/etc/sudoers") 
+        file.insert_line_if_no_match("Defaults env_keep +=\"GOPATH\"", "Defaults env_keep +=\"GOPATH GOROOT\"")
+        file.write_file     
+    end
 end
